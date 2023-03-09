@@ -1,2 +1,2 @@
 # TinyDB
-一款基于BitCask模型建立的k-v式数据库
+一款基于Bitcask模型建立的KV式数据库
