@@ -78,7 +78,7 @@ func (df *File) ReadEntry(offset int64) (entry *Entry, err error) {
 	}
 	entry.Header = decodeEntryHeader(hBuf)
 	if entry.Header.CRC == 0 {
-		return nil, constants.ReadNullEntryErr
+		return nil, constants.ErrReadNullEntry
 	}
 	kvBuf := make([]byte, entry.Header.KeySize+entry.Header.ValueSize)
 	_, err = df.Fd.ReadAt(kvBuf, offset+HeaderSize)
@@ -89,7 +89,7 @@ func (df *File) ReadEntry(offset int64) (entry *Entry, err error) {
 	entry.Value = kvBuf[entry.Header.KeySize:]
 	// 校验CRC
 	if crc := util.GetCrc32(append(hBuf[4:], kvBuf...)); crc != entry.Header.CRC {
-		return nil, errors.Wrap(constants.InconsistentCRC, fmt.Sprintf("want crc: %v, got crc: %v", entry.Header.CRC, crc))
+		return nil, errors.Wrap(constants.ErrInconsistentCRC, fmt.Sprintf("want crc: %v, got crc: %v", entry.Header.CRC, crc))
 	}
 	return
 }

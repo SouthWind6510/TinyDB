@@ -103,7 +103,7 @@ func (db *TinyDB) buildIndexes() (err error) {
 		// 读取活跃文件数据
 		for {
 			entry, err := activeFile.ReadEntry(offset)
-			if err == io.EOF || errors.Is(err, constants.ReadNullEntryErr) {
+			if err == io.EOF || errors.Is(err, constants.ErrReadNullEntry) {
 				break
 			} else if err != nil {
 				return err
@@ -121,7 +121,7 @@ func (db *TinyDB) buildIndexes() (err error) {
 			offset = int64(0)
 			for {
 				entry, err := archivedFile.ReadEntry(offset)
-				if err == io.EOF || errors.Is(err, constants.ReadNullEntryErr) {
+				if err == io.EOF || errors.Is(err, constants.ErrReadNullEntry) {
 					break
 				} else if err != nil {
 					return err

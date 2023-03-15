@@ -3,9 +3,8 @@ package constants
 import "errors"
 
 var (
-	InconsistentCRC  = errors.New("inconsistent CRC")
-	FileWriteErr     = errors.New("file write error")
-	FileReadErr      = errors.New("file read error")
-	OpenFileErr      = errors.New("open file error")
-	ReadNullEntryErr = errors.New("read null entry error")
+	ErrKeyNotFound     = errors.New("key not found")
+	ErrInconsistentCRC = errors.New("inconsistent CRC")
+	ErrReadNullEntry   = errors.New("read null entry")
+	ErrWrongNumberArgs = errors.New("wrong number arguments")
 )
