@@ -1,6 +1,7 @@
 package keydir
 
 import (
+	"SouthWind6510/TinyDB/pkg/constants"
 	"sync"
 )
 
@@ -15,20 +16,26 @@ func NewStrKeydir() *StrKeydir {
 	}
 }
 
-func (i *StrKeydir) Put(key string, pos *EntryPos) {
+func (i *StrKeydir) Set(key string, pos *EntryPos) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
+
 	i.keydir[key] = pos
 }
 
-func (i *StrKeydir) Update(key string, pos *EntryPos) {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-	i.keydir[key] = pos
-}
-
-func (i *StrKeydir) Get(key string) *EntryPos {
+func (i *StrKeydir) Get(key string) (pos *EntryPos, err error) {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
-	return i.keydir[key]
+
+	if _, ok := i.keydir[key]; !ok {
+		return nil, constants.ErrKeyNotFound
+	}
+	return i.keydir[key], nil
+}
+
+func (i *StrKeydir) Del(key string) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	delete(i.keydir, key)
 }

@@ -17,13 +17,13 @@ func Test_encodeEntry(t *testing.T) {
 		{
 			name: "test1",
 			args: args{
-				NewEntry([]byte("key"), []byte("value"), INSERT),
+				NewEntry([]byte("key"), []byte("value"), Insert),
 			},
 		},
 		{
 			name: "test2",
 			args: args{
-				NewEntry([]byte("疯狂星期四"), []byte("v我50"), INSERT),
+				NewEntry([]byte("疯狂星期四"), []byte("v我50"), Insert),
 			},
 		},
 	}

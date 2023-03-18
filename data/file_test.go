@@ -110,7 +110,7 @@ func TestDataFile_WriteReadEntry(t *testing.T) {
 				fileType: String,
 				fileSize: 1 << 10,
 			},
-			wantEntry: NewEntry([]byte("hello"), []byte("world"), INSERT),
+			wantEntry: NewEntry([]byte("hello"), []byte("world"), Insert),
 		}, {
 			name: "test 2",
 			args: args{
@@ -119,7 +119,7 @@ func TestDataFile_WriteReadEntry(t *testing.T) {
 				fileType: String,
 				fileSize: 1 << 10,
 			},
-			wantEntry: NewEntry([]byte("疯狂星期四"), []byte("v我50"), INSERT),
+			wantEntry: NewEntry([]byte("疯狂星期四"), []byte("v我50"), Insert),
 		},
 	}
 	for _, tt := range tests {

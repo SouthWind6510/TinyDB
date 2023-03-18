@@ -16,14 +16,17 @@ type DataType int8
 
 const (
 	String DataType = iota
+	List
 )
 
 var (
 	Type2FileSufMap = map[DataType]string{
 		String: ".str.log",
+		List:   ".list.log",
 	}
 	FileSuf2TypeMap = map[string]DataType{
-		".str.log": String,
+		"str":  String,
+		"list": List,
 	}
 )
 
@@ -117,9 +120,6 @@ func (df *File) Sync() (err error) {
 }
 
 func (df *File) Remove() (err error) {
-	if err = df.Fd.Close(); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("filename: %v", df.FileName))
-	}
 	err = os.Remove(df.Fd.Name())
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("filename: %v", df.FileName))

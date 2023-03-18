@@ -7,4 +7,6 @@ const (
 
 	ResultOk   = "OK"
 	ResultPong = "PONG"
+
+	DebugEnv = "DebugEnv"
 )

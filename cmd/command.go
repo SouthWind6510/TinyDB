@@ -21,6 +21,15 @@ var cmdHandlersMap = map[string]cmdHandler{
 
 	"set": (*Server).Set,
 	"get": (*Server).Get,
+
+	"lpush":  (*Server).LPush,
+	"rpush":  (*Server).RPush,
+	"lpop":   (*Server).LPop,
+	"rpop":   (*Server).RPop,
+	"lindex": (*Server).LIndex,
+	"llen":   (*Server).LLen,
+	"lrange": (*Server).LRange,
+	"lset":   (*Server).LSet,
 }
 
 func execCommand(conn redcon.Conn, cmd redcon.Command) {
@@ -87,6 +96,122 @@ func (s *Server) Get(args [][]byte) (res interface{}, err error) {
 	if len(args) < 1 {
 		return nil, constants.ErrWrongNumberArgs
 	}
-	res, err = s.curDB.Get(args[0])
+	return s.curDB.Get(args[0])
+}
+
+// ======== List相关操作 ========
+
+func (s *Server) LPush(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.LPush(args[0], true, args[1:]...)
+}
+
+func (s *Server) RPush(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.LPush(args[0], false, args[1:]...)
+}
+
+func (s *Server) LPop(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	count := 1
+	if len(args) > 1 {
+		count, err = strconv.Atoi(string(args[1]))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return s.curDB.LPop(args[0], count, true)
+}
+
+func (s *Server) RPop(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	count := 1
+	if len(args) > 1 {
+		count, err = strconv.Atoi(string(args[1]))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return s.curDB.LPop(args[0], count, false)
+}
+
+func (s *Server) LIndex(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	offset, err := strconv.Atoi(string(args[1]))
+	if err != nil {
+		return nil, err
+	}
+	return s.curDB.LIndex(args[0], offset)
+}
+
+func (s *Server) LLen(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.LLen(args[0])
+}
+
+func (s *Server) LRange(args [][]byte) (res interface{}, err error) {
+	if len(args) < 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	sOffset, err := strconv.Atoi(string(args[1]))
+	if err != nil {
+		return nil, err
+	}
+	eOffset, err := strconv.Atoi(string(args[2]))
+	if err != nil {
+		return nil, err
+	}
+	return s.curDB.LRange(args[0], sOffset, eOffset)
+}
+
+func (s *Server) LSet(args [][]byte) (res interface{}, err error) {
+	if len(args) < 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	offset, err := strconv.Atoi(string(args[1]))
+	if err != nil {
+		return nil, err
+	}
+	err = s.curDB.LSet(args[0], offset, args[2])
+	if err != nil {
+		return nil, err
+	}
+	return constants.ResultOk, nil
+}
+
+// TODO
+func (s *Server) LTrim(args [][]byte) (res interface{}, err error) {
+	return
+}
+
+// TODO
+func (s *Server) LInsert(args [][]byte) (res interface{}, err error) {
+	return
+}
+
+// TODO
+func (s *Server) LRem(args [][]byte) (res interface{}, err error) {
+	return
+}
+
+// TODO
+func (s *Server) LMove(args [][]byte) (res interface{}, err error) {
+	return
+}
+
+// TODO
+func (s *Server) LPos(args [][]byte) (res interface{}, err error) {
 	return
 }

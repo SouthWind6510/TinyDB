@@ -12,9 +12,10 @@ const HeaderSize = 29
 type OptrType uint8
 
 const (
-	INSERT OptrType = iota
-	UPDATE
-	DELETE
+	Insert OptrType = iota
+	InsertListMeta
+	Update
+	Delete
 )
 
 type EntryHeader struct {

@@ -4,6 +4,7 @@ import (
 	"SouthWind6510/TinyDB/data"
 	"SouthWind6510/TinyDB/keydir"
 	"SouthWind6510/TinyDB/pkg/constants"
+	"SouthWind6510/TinyDB/pkg/logger"
 	"io"
 	"os"
 	"strconv"
@@ -20,7 +21,8 @@ type TinyDB struct {
 	opt           *Options
 	mu            sync.RWMutex // 读写锁
 
-	strKeydir *keydir.StrKeydir
+	strKeydir  *keydir.StrKeydir
+	listKeydir *keydir.ListKeydir
 }
 
 func Open(opt *Options) (tinyDB *TinyDB, err error) {
@@ -35,6 +37,7 @@ func Open(opt *Options) (tinyDB *TinyDB, err error) {
 		archivedFiles: make(map[data.DataType]map[int16]*data.File),
 		opt:           opt,
 		strKeydir:     keydir.NewStrKeydir(),
+		listKeydir:    keydir.NewListKeydir(),
 	}
 
 	// 加载文件目录
@@ -55,11 +58,23 @@ func (db *TinyDB) Close() {
 	for _, activeFile := range db.activeFiles {
 		_ = activeFile.Sync()
 		_ = activeFile.Close()
+		if os.Getenv(constants.DebugEnv) == "1" {
+			err := activeFile.Remove()
+			if err != nil {
+				logger.Log.Error("%+v", err)
+			}
+		}
 	}
 	for _, archivedFiles := range db.archivedFiles {
 		for _, archivedFile := range archivedFiles {
 			_ = archivedFile.Sync()
 			_ = archivedFile.Close()
+			if os.Getenv(constants.DebugEnv) == "1" {
+				err := archivedFile.Remove()
+				if err != nil {
+					logger.Log.Error("%+v", err)
+				}
+			}
 		}
 	}
 }
@@ -139,7 +154,21 @@ func (db *TinyDB) buildIndexes() (err error) {
 func (db *TinyDB) addIndex(dataType data.DataType, entry *data.Entry, pos *keydir.EntryPos) {
 	switch dataType {
 	case data.String:
-		db.strKeydir.Put(string(entry.Key), pos)
+		if entry.Header.Type == data.Insert {
+			db.strKeydir.Set(string(entry.Key), pos)
+		} else if entry.Header.Type == data.Delete {
+			db.strKeydir.Del(string(entry.Key))
+		}
+	case data.List:
+		if entry.Header.Type == data.InsertListMeta {
+			db.listKeydir.Set(string(entry.Key), MetaIndex, pos)
+		} else if entry.Header.Type == data.Insert {
+			key, index := db.getListKeyIndex(string(entry.Key))
+			db.listKeydir.Set(key, index, pos)
+		} else if entry.Header.Type == data.Delete {
+			key, index := db.getListKeyIndex(string(entry.Key))
+			db.listKeydir.Del(key, index)
+		}
 	}
 }
 
@@ -177,6 +206,7 @@ func (db *TinyDB) WriteEntry(entry *data.Entry, dataType data.DataType) (pos *ke
 			db.archivedFiles[dataType] = make(map[int16]*data.File)
 		}
 		db.archivedFiles[dataType][activeFile.Fid] = activeFile
+		db.activeFiles[dataType] = newFile
 		activeFile = newFile
 	}
 	pos = &keydir.EntryPos{Fid: activeFile.Fid, Offset: activeFile.WriteAt, Size: int64(len(buf))}
