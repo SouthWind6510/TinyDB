@@ -6,8 +6,6 @@ import (
 	"SouthWind6510/TinyDB/util"
 	"encoding/binary"
 	"math"
-	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -38,17 +36,6 @@ func (db *TinyDB) getListMeta(key []byte) (head, tail uint32, err error) {
 	head = binary.LittleEndian.Uint32(entry.Value[:4])
 	tail = binary.LittleEndian.Uint32(entry.Value[4:])
 	return
-}
-
-func (db *TinyDB) getListKeyIndex(k string) (key string, res int) {
-	strs := strings.Split(k, "##")
-	key = strs[0]
-	res, _ = strconv.Atoi(strs[len(strs)-1])
-	return
-}
-
-func (db *TinyDB) getListKey(key []byte, index int) []byte {
-	return []byte(string(key) + "##" + strconv.Itoa(index))
 }
 
 // 更新ListMeta
@@ -82,7 +69,7 @@ func (db *TinyDB) LPush(key []byte, isLeft bool, values ...[]byte) (len int, err
 			err = constants.ErrListLengthLimitExceeded
 			break
 		}
-		entry := data.NewEntry(db.getListKey(key, index), value, data.Insert)
+		entry := data.NewEntry(encodeListKey(key, index), value, data.Insert)
 		pos, err := db.WriteEntry(entry, data.List)
 		if err != nil {
 			continue
@@ -111,15 +98,15 @@ func (db *TinyDB) LPop(key []byte, count int, isLeft bool) (res []string, err er
 			break
 		}
 		// 读list节点
-		var index uint32
+		var index int
 		if isLeft {
-			index = head
+			index = int(head)
 			head++
 		} else {
-			index = tail
+			index = int(tail)
 			tail--
 		}
-		pos, err := db.listKeydir.Get(string(key), int(index))
+		pos, err := db.listKeydir.Get(string(key), index)
 		if err != nil {
 			continue
 		}
@@ -130,12 +117,12 @@ func (db *TinyDB) LPop(key []byte, count int, isLeft bool) (res []string, err er
 		res = append(res, string(entry.Value))
 
 		// 删除节点
-		entry = data.NewEntry(db.getListKey(key, int(index)), []byte{}, data.Delete)
+		entry = data.NewEntry(encodeListKey(key, index), []byte{}, data.Delete)
 		pos, err = db.WriteEntry(entry, data.List)
 		if err != nil {
 			continue
 		}
-		db.listKeydir.Set(string(key), int(index), pos)
+		db.listKeydir.Set(string(key), index, pos)
 	}
 
 	db.saveListMeta(key, head, tail)
@@ -217,7 +204,7 @@ func (db *TinyDB) LSet(key []byte, offset int, value []byte) (err error) {
 	if index < int(head) || index > int(tail) {
 		return constants.ErrListIndexOutOfRange
 	}
-	entry := data.NewEntry(db.getListKey(key, index), value, data.Insert)
+	entry := data.NewEntry(encodeListKey(key, index), value, data.Insert)
 	pos, err := db.WriteEntry(entry, data.List)
 	if err != nil {
 		return

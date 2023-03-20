@@ -30,6 +30,20 @@ var cmdHandlersMap = map[string]cmdHandler{
 	"llen":   (*Server).LLen,
 	"lrange": (*Server).LRange,
 	"lset":   (*Server).LSet,
+
+	"hset":    (*Server).HSet,
+	"hget":    (*Server).HGet,
+	"hgetall": (*Server).HGetAll,
+	"hdel":    (*Server).HDel,
+	"hexists": (*Server).HExists,
+	"hlen":    (*Server).HLen,
+	"hkeys":   (*Server).HKeys,
+	"hvals":   (*Server).HVals,
+	"hincrby": (*Server).HIncrBy,
+	"hmget":   (*Server).HMGet,
+	"hmset":   (*Server).HMSet,
+	"hscan":   (*Server).HScan,
+	"hsetnx":  (*Server).HSetNX,
 }
 
 func execCommand(conn redcon.Conn, cmd redcon.Command) {
@@ -57,7 +71,7 @@ func execCommand(conn redcon.Conn, cmd redcon.Command) {
 	}
 }
 
-// ======== redis协议相关操作 ========
+// ======== redis协议相关命令 ========
 
 func (s *Server) Ping(args [][]byte) (res interface{}, err error) {
 	return constants.ResultPong, nil
@@ -79,7 +93,7 @@ func (s *Server) Select(args [][]byte) (res interface{}, err error) {
 	return constants.ResultOk, nil
 }
 
-// ======== String相关操作 ========
+// ======== String相关命令 ========
 
 func (s *Server) Set(args [][]byte) (res interface{}, err error) {
 	if len(args) < 2 {
@@ -99,7 +113,7 @@ func (s *Server) Get(args [][]byte) (res interface{}, err error) {
 	return s.curDB.Get(args[0])
 }
 
-// ======== List相关操作 ========
+// ======== List相关命令 ========
 
 func (s *Server) LPush(args [][]byte) (res interface{}, err error) {
 	if len(args) < 2 {
@@ -214,4 +228,103 @@ func (s *Server) LMove(args [][]byte) (res interface{}, err error) {
 // TODO
 func (s *Server) LPos(args [][]byte) (res interface{}, err error) {
 	return
+}
+
+// ======== Hash相关命令 ========
+
+func (s *Server) HSet(args [][]byte) (res interface{}, err error) {
+	if len(args) < 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.HSet(args[0], args[1:]...)
+}
+
+func (s *Server) HGet(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.HGet(args[0], args[1])
+}
+
+func (s *Server) HGetAll(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.HGetAll(args[0])
+}
+
+func (s *Server) HDel(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.HDel(args[0], args[1:]...)
+}
+
+func (s *Server) HExists(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.HExists(args[0], args[1])
+}
+
+func (s *Server) HLen(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.HLen(args[0])
+}
+
+func (s *Server) HKeys(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.HKeys(args[0])
+}
+
+func (s *Server) HVals(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.HVals(args[0])
+}
+
+func (s *Server) HIncrBy(args [][]byte) (res interface{}, err error) {
+	if len(args) < 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	incr, err := strconv.Atoi(string(args[2]))
+	if err != nil {
+		return nil, err
+	}
+	return s.curDB.HIncrBy(args[0], args[1], incr)
+}
+
+func (s *Server) HMGet(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.HMGet(args[0], args[1:]...)
+}
+
+func (s *Server) HMSet(args [][]byte) (res interface{}, err error) {
+	if len(args) < 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	err = s.curDB.HMSet(args[0], args[1:]...)
+	if err != nil {
+		return nil, err
+	}
+	return constants.ResultOk, nil
+}
+
+func (s *Server) HSetNX(args [][]byte) (res interface{}, err error) {
+	if len(args) < 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.HSetNX(args[0], args[1], args[2])
+}
+
+// TODO
+func (s *Server) HScan(args [][]byte) (res interface{}, err error) {
+	return nil, constants.ErrUnsupportedCommand
 }

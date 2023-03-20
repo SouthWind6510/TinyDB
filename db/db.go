@@ -23,6 +23,7 @@ type TinyDB struct {
 
 	strKeydir  *keydir.StrKeydir
 	listKeydir *keydir.ListKeydir
+	hashKeydir *keydir.HashKeydir
 }
 
 func Open(opt *Options) (tinyDB *TinyDB, err error) {
@@ -38,6 +39,7 @@ func Open(opt *Options) (tinyDB *TinyDB, err error) {
 		opt:           opt,
 		strKeydir:     keydir.NewStrKeydir(),
 		listKeydir:    keydir.NewListKeydir(),
+		hashKeydir:    keydir.NewHashKeydir(),
 	}
 
 	// 加载文件目录
@@ -61,7 +63,7 @@ func (db *TinyDB) Close() {
 		if os.Getenv(constants.DebugEnv) == "1" {
 			err := activeFile.Remove()
 			if err != nil {
-				logger.Log.Error("%+v", err)
+				logger.Log.Errorf("%+v", err)
 			}
 		}
 	}
@@ -72,7 +74,7 @@ func (db *TinyDB) Close() {
 			if os.Getenv(constants.DebugEnv) == "1" {
 				err := archivedFile.Remove()
 				if err != nil {
-					logger.Log.Error("%+v", err)
+					logger.Log.Errorf("%+v", err)
 				}
 			}
 		}
@@ -163,11 +165,19 @@ func (db *TinyDB) addIndex(dataType data.DataType, entry *data.Entry, pos *keydi
 		if entry.Header.Type == data.InsertListMeta {
 			db.listKeydir.Set(string(entry.Key), MetaIndex, pos)
 		} else if entry.Header.Type == data.Insert {
-			key, index := db.getListKeyIndex(string(entry.Key))
-			db.listKeydir.Set(key, index, pos)
+			key, index := decodeListKey(entry.Key)
+			db.listKeydir.Set(string(key), index, pos)
 		} else if entry.Header.Type == data.Delete {
-			key, index := db.getListKeyIndex(string(entry.Key))
-			db.listKeydir.Del(key, index)
+			key, index := decodeListKey(entry.Key)
+			db.listKeydir.Del(string(key), index)
+		}
+	case data.Hash:
+		if entry.Header.Type == data.Insert {
+			key, field := decodeSubKey(entry.Key)
+			db.hashKeydir.Set(string(key), string(field), pos)
+		} else if entry.Header.Type == data.Delete {
+			key, field := decodeSubKey(entry.Key)
+			db.hashKeydir.Del(string(key), string(field))
 		}
 	}
 }

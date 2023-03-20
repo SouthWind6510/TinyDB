@@ -5,16 +5,16 @@ import (
 	"sync"
 )
 
-type indexMap map[int]*EntryPos
+type listIndexMap map[int]*EntryPos
 
 type ListKeydir struct {
 	mu     sync.RWMutex
-	keydir map[string]indexMap //key的index的位置
+	keydir map[string]listIndexMap //key的index的位置
 }
 
 func NewListKeydir() *ListKeydir {
 	return &ListKeydir{
-		keydir: make(map[string]indexMap),
+		keydir: make(map[string]listIndexMap),
 	}
 }
 
@@ -24,7 +24,7 @@ func (i *ListKeydir) Set(key string, index int, pos *EntryPos) {
 	defer i.mu.Unlock()
 
 	if i.keydir[key] == nil {
-		i.keydir[key] = make(indexMap)
+		i.keydir[key] = make(listIndexMap)
 	}
 	i.keydir[key][index] = pos
 }

@@ -9,4 +9,6 @@ var (
 	ErrWrongNumberArgs         = errors.New("wrong number arguments")
 	ErrListLengthLimitExceeded = errors.New("list length limit exceeded")
 	ErrListIndexOutOfRange     = errors.New("index out of range")
+	ErrHashValueIsNotInteger   = errors.New("hash value is not an integer")
+	ErrUnsupportedCommand      = errors.New("unsupported command")
 )
