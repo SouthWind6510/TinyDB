@@ -140,7 +140,7 @@ func (db *TinyDB) LIndex(key []byte, offset int) (res interface{}, err error) {
 		index = int(tail) + offset + 1
 	}
 	if index < int(head) || index > int(tail) {
-		return nil, constants.ErrListLengthLimitExceeded
+		return nil, constants.ErrListIndexOutOfRange
 	}
 	pos, err := db.listKeydir.Get(string(key), index)
 	if err != nil {

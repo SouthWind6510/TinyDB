@@ -44,6 +44,16 @@ var cmdHandlersMap = map[string]cmdHandler{
 	"hmset":   (*Server).HMSet,
 	"hscan":   (*Server).HScan,
 	"hsetnx":  (*Server).HSetNX,
+
+	"sadd":        (*Server).SAdd,
+	"srem":        (*Server).SRem,
+	"spop":        (*Server).SPop,
+	"scard":       (*Server).SCard,
+	"smembers":    (*Server).SMembers,
+	"sismember":   (*Server).SIsMember,
+	"smismember":  (*Server).SMIsMember,
+	"srandmember": (*Server).SRandMember,
+	"sscan":       (*Server).SScan,
 }
 
 func execCommand(conn redcon.Conn, cmd redcon.Command) {
@@ -326,5 +336,82 @@ func (s *Server) HSetNX(args [][]byte) (res interface{}, err error) {
 
 // TODO
 func (s *Server) HScan(args [][]byte) (res interface{}, err error) {
+	return nil, constants.ErrUnsupportedCommand
+}
+
+// ======== Set相关命令 ========
+
+func (s *Server) SAdd(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.SAdd(args[0], args[1:]...)
+}
+
+func (s *Server) SRem(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.SRem(args[0], args[1:]...)
+}
+
+func (s *Server) SPop(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	count := 1
+	if len(args) == 2 {
+		count, err = strconv.Atoi(string(args[1]))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return s.curDB.SPop(args[0], count)
+}
+
+func (s *Server) SCard(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.SCard(args[0])
+}
+
+func (s *Server) SMembers(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.SMembers(args[0])
+}
+
+func (s *Server) SIsMember(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.SIsMember(args[0], args[1])
+}
+
+func (s *Server) SMIsMember(args [][]byte) (res interface{}, err error) {
+	if len(args) < 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.SMIsMember(args[0], args[1:]...)
+}
+
+func (s *Server) SRandMember(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	count := 1
+	if len(args) == 2 {
+		count, err = strconv.Atoi(string(args[1]))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return s.curDB.SRandMember(args[0], count)
+}
+
+// TODO
+func (s *Server) SScan(args [][]byte) (res interface{}, err error) {
 	return nil, constants.ErrUnsupportedCommand
 }

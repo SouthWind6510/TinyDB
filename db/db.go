@@ -24,6 +24,7 @@ type TinyDB struct {
 	strKeydir  *keydir.StrKeydir
 	listKeydir *keydir.ListKeydir
 	hashKeydir *keydir.HashKeydir
+	setKeydir  *keydir.SetKeydir
 }
 
 func Open(opt *Options) (tinyDB *TinyDB, err error) {
@@ -40,6 +41,7 @@ func Open(opt *Options) (tinyDB *TinyDB, err error) {
 		strKeydir:     keydir.NewStrKeydir(),
 		listKeydir:    keydir.NewListKeydir(),
 		hashKeydir:    keydir.NewHashKeydir(),
+		setKeydir:     keydir.NewSetKeydir(),
 	}
 
 	// 加载文件目录
@@ -178,6 +180,14 @@ func (db *TinyDB) addIndex(dataType data.DataType, entry *data.Entry, pos *keydi
 		} else if entry.Header.Type == data.Delete {
 			key, field := decodeSubKey(entry.Key)
 			db.hashKeydir.Del(string(key), string(field))
+		}
+	case data.Set:
+		if entry.Header.Type == data.Insert {
+			key, field := decodeSubKey(entry.Key)
+			db.setKeydir.Set(string(key), string(field))
+		} else if entry.Header.Type == data.Delete {
+			key, field := decodeSubKey(entry.Key)
+			db.setKeydir.Del(string(key), string(field))
 		}
 	}
 }

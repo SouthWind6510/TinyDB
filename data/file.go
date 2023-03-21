@@ -26,10 +26,16 @@ var (
 	Type2FileSufMap = map[DataType]string{
 		String: ".str.log",
 		List:   ".list.log",
+		Hash:   ".hash.log",
+		Set:    ".set.log",
+		ZSet:   ".zset.log",
 	}
 	FileSuf2TypeMap = map[string]DataType{
 		"str":  String,
 		"list": List,
+		"hash": Hash,
+		"set":  Set,
+		"zset": ZSet,
 	}
 )
 
