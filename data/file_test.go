@@ -50,7 +50,7 @@ func TestOpenDataFile(t *testing.T) {
 		{
 			name: "small file",
 			args: args{
-				path:     "/Users/southwind/tmp",
+				path:     "/Users/southwind/TinyDB/test/0",
 				fid:      1,
 				fileType: String,
 				fileSize: 1 << 10,
@@ -60,7 +60,7 @@ func TestOpenDataFile(t *testing.T) {
 		{
 			name: "mid file",
 			args: args{
-				path:     "/Users/southwind/tmp",
+				path:     "/Users/southwind/TinyDB/test/0",
 				fid:      2,
 				fileType: String,
 				fileSize: 1 << 20,
@@ -69,7 +69,7 @@ func TestOpenDataFile(t *testing.T) {
 		}, {
 			name: "big file",
 			args: args{
-				path:     "/Users/southwind/tmp",
+				path:     "/Users/southwind/TinyDB/test/0",
 				fid:      3,
 				fileType: String,
 				fileSize: 1 << 30,
@@ -79,12 +79,13 @@ func TestOpenDataFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := OpenDataFile(tt.args.path, tt.args.fid, tt.args.fileType, tt.args.fileSize)
+			file, err := OpenDataFile(tt.args.path, tt.args.fid, tt.args.fileType, tt.args.fileSize)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("OpenDataFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			//_ = gotDf.Remove()
+			_ = file.Close()
+			_ = file.Remove()
 		})
 	}
 }
@@ -105,7 +106,7 @@ func TestDataFile_WriteReadEntry(t *testing.T) {
 		{
 			name: "test 1",
 			args: args{
-				path:     "/Users/southwind/tmp",
+				path:     "/Users/southwind/TinyDB/test/0",
 				fid:      1,
 				fileType: String,
 				fileSize: 1 << 10,
@@ -114,7 +115,7 @@ func TestDataFile_WriteReadEntry(t *testing.T) {
 		}, {
 			name: "test 2",
 			args: args{
-				path:     "/Users/southwind/tmp",
+				path:     "/Users/southwind/TinyDB/test/0",
 				fid:      1,
 				fileType: String,
 				fileSize: 1 << 10,
