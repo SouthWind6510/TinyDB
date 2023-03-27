@@ -7,6 +7,7 @@ import (
 	"SouthWind6510/TinyDB/pkg/logger"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,6 +26,7 @@ type TinyDB struct {
 	listKeydir *keydir.ListKeydir
 	hashKeydir *keydir.HashKeydir
 	setKeydir  *keydir.SetKeydir
+	zsetKeydir *keydir.ZSetKeydir
 }
 
 func Open(opt *Options) (tinyDB *TinyDB, err error) {
@@ -42,6 +44,7 @@ func Open(opt *Options) (tinyDB *TinyDB, err error) {
 		listKeydir:    keydir.NewListKeydir(),
 		hashKeydir:    keydir.NewHashKeydir(),
 		setKeydir:     keydir.NewSetKeydir(),
+		zsetKeydir:    keydir.NewZSetKeydir(),
 	}
 
 	// 加载文件目录
@@ -114,41 +117,39 @@ func (db *TinyDB) loadDataFiles() (err error) {
 	return
 }
 
+// buildIndexes 读取活跃文件和存档文件数据，构建索引
+// 要按顺序读！！！
 func (db *TinyDB) buildIndexes() (err error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	for dataType, activeFile := range db.activeFiles {
-		offset := int64(0)
-		// 读取活跃文件数据
-		for {
-			entry, err := activeFile.ReadEntry(offset)
-			if err == io.EOF || errors.Is(err, constants.ErrReadNullEntry) {
-				break
-			} else if err != nil {
-				return err
-			}
-			size := int64(data.HeaderSize + entry.Header.KeySize + entry.Header.ValueSize)
-			pos := &keydir.EntryPos{Fid: activeFile.Fid, Offset: offset, Size: size}
-			db.addIndex(dataType, entry, pos)
-			offset += size
-		}
-		// 更新活跃文件WriteAt
-		db.activeFiles[dataType].WriteAt = offset
-
-		// 读取存档文件数据
+		files := make([]*data.File, 0)
+		files = append(files, activeFile)
 		for _, archivedFile := range db.archivedFiles[dataType] {
-			offset = int64(0)
+			files = append(files, archivedFile)
+		}
+		// 按照fid从小到大读取
+		sort.Slice(files, func(i, j int) bool {
+			return files[i].Fid < files[j].Fid
+		})
+		for i := 0; i < len(files); i++ {
+			offset := int64(0)
+			// 读取活跃文件数据
 			for {
-				entry, err := archivedFile.ReadEntry(offset)
-				if err == io.EOF || errors.Is(err, constants.ErrReadNullEntry) {
+				entry, err := files[i].ReadEntry(offset)
+				if errors.Is(err, io.EOF) || errors.Is(err, constants.ErrReadNullEntry) {
 					break
 				} else if err != nil {
 					return err
 				}
 				size := int64(data.HeaderSize + entry.Header.KeySize + entry.Header.ValueSize)
-				pos := &keydir.EntryPos{Fid: archivedFile.Fid, Offset: offset, Size: size}
+				pos := &keydir.EntryPos{Fid: activeFile.Fid, Offset: offset, Size: size}
 				db.addIndex(dataType, entry, pos)
 				offset += size
+			}
+			if i == len(files)-1 {
+				// 更新活跃文件WriteAt
+				files[i].WriteAt = offset
 			}
 		}
 	}
@@ -188,6 +189,19 @@ func (db *TinyDB) addIndex(dataType data.DataType, entry *data.Entry, pos *keydi
 		} else if entry.Header.Type == data.Delete {
 			key, field := decodeSubKey(entry.Key)
 			db.setKeydir.Del(string(key), string(field))
+		}
+	case data.ZSet:
+		if entry.Header.Type == data.Insert {
+			key, member := decodeSubKey(entry.Key)
+			score, err := strconv.ParseFloat(string(entry.Value), 64)
+			if err != nil {
+				logger.Log.Errorf("zset score parse error: %v", err)
+				return
+			}
+			db.zsetKeydir.Set(string(key), string(member), score)
+		} else if entry.Header.Type == data.Delete {
+			key, member := decodeSubKey(entry.Key)
+			db.zsetKeydir.DeleteWithoutScore(string(key), string(member))
 		}
 	}
 }

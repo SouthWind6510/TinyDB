@@ -9,6 +9,7 @@ import (
 func Test_Hash(t *testing.T) {
 	_ = os.Setenv(constants.DebugEnv, "1")
 	tinyDB := openDB()
+	defer tinyDB.Close()
 
 	if res, _ := tinyDB.HSet([]byte("hash"), []byte("a"), []byte("1"), []byte("b"), []byte("2"), []byte("c"), []byte("d")); res != 3 {
 		t.Errorf("HSet error")
@@ -58,6 +59,4 @@ func Test_Hash(t *testing.T) {
 	if res, _ := tinyDB.HLen([]byte("hash")); res != 0 {
 		t.Errorf("HDel error")
 	}
-
-	tinyDB.Close()
 }

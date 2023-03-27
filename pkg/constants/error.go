@@ -11,4 +11,6 @@ var (
 	ErrListIndexOutOfRange     = errors.New("index out of range")
 	ErrHashValueIsNotInteger   = errors.New("hash value is not an integer")
 	ErrUnsupportedCommand      = errors.New("unsupported command")
+	ErrMemberNotExist          = errors.New("member not exist")
+	ErrInvalidRange            = errors.New("invalid range")
 )

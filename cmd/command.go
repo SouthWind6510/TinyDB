@@ -4,7 +4,9 @@ import (
 	"SouthWind6510/TinyDB/db"
 	"SouthWind6510/TinyDB/pkg/constants"
 	"SouthWind6510/TinyDB/pkg/logger"
+	"SouthWind6510/TinyDB/util"
 	"fmt"
+	"math"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -54,6 +56,23 @@ var cmdHandlersMap = map[string]cmdHandler{
 	"smismember":  (*Server).SMIsMember,
 	"srandmember": (*Server).SRandMember,
 	"sscan":       (*Server).SScan,
+
+	"zadd":             (*Server).ZAdd,
+	"zcard":            (*Server).ZCard,
+	"zcount":           (*Server).ZCount,
+	"zincrby":          (*Server).ZIncrBy,
+	"zscore":           (*Server).ZScore,
+	"zmscore":          (*Server).ZMScore,
+	"zpopmax":          (*Server).ZPopMax,
+	"zpopmin":          (*Server).ZPopMin,
+	"zrandmember":      (*Server).ZRandMember,
+	"zrange":           (*Server).ZRange,
+	"zrangebyscore":    (*Server).ZRangeByScore,
+	"zrank":            (*Server).ZRank,
+	"zrem":             (*Server).ZRem,
+	"zremrangebyrank":  (*Server).ZRemRangeByRank,
+	"zremrangebyscore": (*Server).ZRemRangeByScore,
+	"zscan":            (*Server).ZScan,
 }
 
 func execCommand(conn redcon.Conn, cmd redcon.Command) {
@@ -413,5 +432,235 @@ func (s *Server) SRandMember(args [][]byte) (res interface{}, err error) {
 
 // TODO
 func (s *Server) SScan(args [][]byte) (res interface{}, err error) {
+	return nil, constants.ErrUnsupportedCommand
+}
+
+// ======== ZSet相关命令 ========
+
+func (s *Server) ZAdd(args [][]byte) (res interface{}, err error) {
+	var opt1, opt2, opt3, opt4 string
+	index := 1
+loop:
+	for index = 1; index < util.MinInt(5, len(args)); index++ {
+		switch strings.ToLower(string(args[index])) {
+		case "nx":
+			opt1 = "nx"
+		case "xx":
+			opt1 = "xx"
+		case "gt":
+			opt2 = "gt"
+		case "lt":
+			opt2 = "lt"
+		case "ch":
+			opt3 = "ch"
+		case "incr":
+			opt4 = "incr"
+		default:
+			break loop
+		}
+	}
+	if len(args[index:]) == 0 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.ZAdd(args[0], opt1, opt2, opt3, opt4, args[index:]...)
+}
+
+func (s *Server) ZCard(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.ZCard(args[0])
+}
+
+func (s *Server) ZCount(args [][]byte) (res interface{}, err error) {
+	if len(args) < 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	var min, max float64
+	if string(args[1]) == "-inf" {
+		min = math.MinInt64
+	} else {
+		min, err = strconv.ParseFloat(string(args[1]), 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if string(args[2]) == "+inf" {
+		max = math.MaxInt64
+	} else {
+		max, err = strconv.ParseFloat(string(args[2]), 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return s.curDB.ZCount(args[0], min, max)
+}
+
+func (s *Server) ZIncrBy(args [][]byte) (res interface{}, err error) {
+	if len(args) < 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	incr, err := strconv.ParseFloat(string(args[1]), 64)
+	if err != nil {
+		return nil, err
+	}
+	return s.curDB.ZIncrBy(args[0], incr, args[2])
+}
+
+func (s *Server) ZScore(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.ZMScore(args[0], args[1])
+}
+
+func (s *Server) ZMScore(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.ZMScore(args[0], args[1:]...)
+}
+
+func (s *Server) ZPopMax(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	count := 1
+	if len(args) == 2 {
+		count, err = strconv.Atoi(string(args[1]))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return s.curDB.ZPop(args[0], false, count)
+}
+
+func (s *Server) ZPopMin(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	count := 1
+	if len(args) == 2 {
+		count, err = strconv.Atoi(string(args[1]))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return s.curDB.ZPop(args[0], true, count)
+}
+
+func (s *Server) ZRandMember(args [][]byte) (res interface{}, err error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	withscores := false
+	count := 1
+	for i := 1; i < len(args); i++ {
+		if strings.ToLower(string(args[i])) == "withscores" {
+			withscores = true
+		} else {
+			count, err = strconv.Atoi(string(args[1]))
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return s.curDB.ZRandMember(args[0], count, withscores)
+}
+
+// ZRange key start stop [BYSCORE] [REV] [WITHSCORES]
+func (s *Server) ZRange(args [][]byte) (res interface{}, err error) {
+	if len(args) < 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	var start, end float64
+	if string(args[1]) == "-inf" {
+		start = math.MinInt64
+	} else {
+		start, err = strconv.ParseFloat(string(args[1]), 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if string(args[2]) == "+inf" {
+		end = math.MaxInt64
+	} else {
+		end, err = strconv.ParseFloat(string(args[2]), 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+	byScore, rev, withScores := false, false, 0
+	for i := 3; i < len(args); i++ {
+		switch strings.ToLower(string(args[i])) {
+		case "byscore":
+			byScore = true
+		case "rev":
+			rev = true
+		case "withscores":
+			withScores = 1
+		}
+	}
+	return s.curDB.ZRange(args[0], start, end, byScore, rev, withScores)
+}
+
+// ZRangeByScore As of Redis version 6.2.0, this command is regarded as deprecated.
+// It can be replaced by ZRANGE with the BYSCORE argument when migrating or writing new code.
+func (s *Server) ZRangeByScore(args [][]byte) (res interface{}, err error) {
+	if len(args) < 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.ZRange(args)
+}
+
+func (s *Server) ZRank(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	withscore := false
+	if len(args) == 3 && strings.ToLower(string(args[2])) == "withscore" {
+		withscore = true
+	}
+	return s.curDB.ZRank(args[0], args[1], withscore)
+}
+
+func (s *Server) ZRem(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.ZRem(args[0], args[1:]...)
+}
+
+func (s *Server) ZRemRangeByRank(args [][]byte) (res interface{}, err error) {
+	if len(args) < 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	start, err := strconv.Atoi(string(args[1]))
+	if err != nil {
+		return nil, err
+	}
+	stop, err := strconv.Atoi(string(args[2]))
+	if err != nil {
+		return nil, err
+	}
+	return s.curDB.ZRemRange(args[0], float64(start), float64(stop), false)
+}
+
+func (s *Server) ZRemRangeByScore(args [][]byte) (res interface{}, err error) {
+	if len(args) < 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	min, err := strconv.ParseFloat(string(args[1]), 64)
+	if err != nil {
+		return nil, err
+	}
+	max, err := strconv.ParseFloat(string(args[2]), 64)
+	if err != nil {
+		return nil, err
+	}
+	return s.curDB.ZRemRange(args[0], min, max, true)
+}
+
+func (s *Server) ZScan(args [][]byte) (res interface{}, err error) {
 	return nil, constants.ErrUnsupportedCommand
 }
