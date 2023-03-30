@@ -20,8 +20,42 @@ redis-cli -p 6388
 ## 支持的命令
 ### String
 SET
+> 仅支持 SET key value
 
-GET
+MSET
+
+SETNX
+
+MSETNX
+
+SETRANGE
+
+INCR
+
+INCRBY
+
+INCRBYFLOAT
+> 不支持指数计数法
+
+DECR
+
+DECRBY
+
+APPEND
+
+GET 
+
+MGET
+
+GETRANGE
+
+GETSET
+
+GETDEL
+
+STRLEN
+
+SUBSTR
 
 ### List
 LPUSH
@@ -71,8 +105,6 @@ SADD
 SREM
 
 SPOP
-
-SSCAN
 
 SMEMBERS
 

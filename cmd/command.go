@@ -21,8 +21,28 @@ var cmdHandlersMap = map[string]cmdHandler{
 	"ping":   (*Server).Ping,
 	"select": (*Server).Select,
 
-	"set": (*Server).Set,
-	"get": (*Server).Get,
+	"set":         (*Server).Set,
+	"mset":        (*Server).MSet,
+	"setex":       (*Server).SetEX,
+	"setnx":       (*Server).SetNX,
+	"msetnx":      (*Server).MSetNX,
+	"psetex":      (*Server).PSetEX,
+	"setrange":    (*Server).SetRange,
+	"incr":        (*Server).Incr,
+	"incrby":      (*Server).IncrBy,
+	"incrbyfloat": (*Server).IncrByFloat,
+	"decr":        (*Server).Decr,
+	"decrby":      (*Server).DecrBy,
+	"append":      (*Server).Append,
+	"get":         (*Server).Get,
+	"mget":        (*Server).MGet,
+	"getrange":    (*Server).GetRange,
+	"getset":      (*Server).GetSet,
+	"getdel":      (*Server).GetDel,
+	"getex":       (*Server).GetEX,
+	"lcs":         (*Server).LCS,
+	"strlen":      (*Server).StrLen,
+	"substr":      (*Server).SubStr,
 
 	"lpush":  (*Server).LPush,
 	"rpush":  (*Server).RPush,
@@ -135,11 +155,182 @@ func (s *Server) Set(args [][]byte) (res interface{}, err error) {
 	return
 }
 
+func (s *Server) MSet(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 || len(args)%2 != 0 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	for i := 0; i < len(args); i += 2 {
+		err = s.curDB.Set(args[i], args[i+1])
+		continue
+	}
+	res = constants.ResultOk
+	return
+}
+
+func (s *Server) SetEX(args [][]byte) (res interface{}, err error) {
+	return nil, constants.ErrUnsupportedCommand
+}
+
+func (s *Server) SetNX(args [][]byte) (res interface{}, err error) {
+	if len(args) != 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.SetNX(args[0], args[1]), nil
+}
+
+func (s *Server) MSetNX(args [][]byte) (res interface{}, err error) {
+	if len(args) < 2 || len(args)%2 != 0 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.MSetNX(args...), nil
+}
+
+func (s *Server) PSetEX(args [][]byte) (res interface{}, err error) {
+	return nil, constants.ErrUnsupportedCommand
+}
+
+func (s *Server) SetRange(args [][]byte) (res interface{}, err error) {
+	if len(args) != 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	offset, err := strconv.Atoi(string(args[1]))
+	if err != nil {
+		return
+	}
+	return s.curDB.SetRange(args[0], args[2], offset)
+}
+
+func (s *Server) Incr(args [][]byte) (res interface{}, err error) {
+	if len(args) != 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.Incr(args[0], 1)
+}
+
+func (s *Server) IncrBy(args [][]byte) (res interface{}, err error) {
+	if len(args) != 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	incr, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	return s.curDB.Incr(args[0], incr)
+}
+
+func (s *Server) IncrByFloat(args [][]byte) (res interface{}, err error) {
+	if len(args) != 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	incr, err := strconv.ParseFloat(string(args[1]), 64)
+	if err != nil {
+		return nil, err
+	}
+	return s.curDB.IncrByFloat(args[0], incr)
+}
+
+func (s *Server) Decr(args [][]byte) (res interface{}, err error) {
+	if len(args) != 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.Incr(args[0], -1)
+}
+
+func (s *Server) DecrBy(args [][]byte) (res interface{}, err error) {
+	if len(args) != 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	incr, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	return s.curDB.Incr(args[0], -incr)
+}
+
+func (s *Server) Append(args [][]byte) (res interface{}, err error) {
+	if len(args) != 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.Append(args[0], args[1])
+}
+
 func (s *Server) Get(args [][]byte) (res interface{}, err error) {
 	if len(args) < 1 {
 		return nil, constants.ErrWrongNumberArgs
 	}
 	return s.curDB.Get(args[0])
+}
+
+func (s *Server) MGet(args [][]byte) (interface{}, error) {
+	if len(args) < 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	res := make([]interface{}, len(args))
+	for i, key := range args {
+		if value, err := s.curDB.Get(key); err != nil {
+			res[i] = nil
+		} else {
+			res[i] = string(value)
+		}
+	}
+	return res, nil
+}
+
+func (s *Server) GetRange(args [][]byte) (res interface{}, err error) {
+	if len(args) != 3 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	start, err := strconv.Atoi(string(args[1]))
+	if err != nil {
+		return
+	}
+	end, err := strconv.Atoi(string(args[2]))
+	if err != nil {
+		return
+	}
+	return s.curDB.GetRange(args[0], start, end)
+}
+
+func (s *Server) GetSet(args [][]byte) (res interface{}, err error) {
+	if len(args) != 2 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	old, err := s.curDB.Get(args[0])
+	_ = s.curDB.Set(args[0], args[1])
+	if err != nil {
+		return nil, nil
+	}
+	return old, nil
+}
+
+func (s *Server) GetDel(args [][]byte) (res interface{}, err error) {
+	if len(args) != 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	return s.curDB.GetDel(args[0]), nil
+}
+
+func (s *Server) GetEX(args [][]byte) (res interface{}, err error) {
+	return nil, constants.ErrUnsupportedCommand
+}
+
+func (s *Server) LCS(args [][]byte) (res interface{}, err error) {
+	return nil, constants.ErrUnsupportedCommand
+}
+
+func (s *Server) StrLen(args [][]byte) (res interface{}, err error) {
+	if len(args) != 1 {
+		return nil, constants.ErrWrongNumberArgs
+	}
+	bytes, err := s.curDB.Get(args[0])
+	if err != nil {
+		return 0, nil
+	}
+	return len(string(bytes)), nil
+}
+
+func (s *Server) SubStr(args [][]byte) (res interface{}, err error) {
+	return s.GetRange(args)
 }
 
 // ======== List相关命令 ========
