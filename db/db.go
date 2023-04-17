@@ -30,6 +30,7 @@ type TinyDB struct {
 }
 
 func Open(opt *Options) (tinyDB *TinyDB, err error) {
+	logger.Log.Infof("Open TinyDB with options: %+v", opt)
 	// 创建不存在的目录
 	if _, err = os.Stat(opt.DBPath); os.IsNotExist(err) {
 		if err := os.MkdirAll(opt.DBPath, os.ModePerm); err != nil {
@@ -52,11 +53,13 @@ func Open(opt *Options) (tinyDB *TinyDB, err error) {
 	if err != nil {
 		return nil, err
 	}
+	logger.Log.Infof("Load data files successful")
 	// 加载索引，更新WriteAt
 	err = tinyDB.buildIndexes()
 	if err != nil {
 		return nil, err
 	}
+	logger.Log.Infof("Build indexes successful")
 	// TODO 异步GC
 	return
 }
@@ -220,6 +223,8 @@ func (db *TinyDB) initDataFile(dataType data.DataType) (err error) {
 }
 
 func (db *TinyDB) WriteEntry(entry *data.Entry, dataType data.DataType) (pos *keydir.EntryPos, err error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	err = db.initDataFile(dataType)
 	if err != nil {
 		return nil, err
@@ -227,7 +232,6 @@ func (db *TinyDB) WriteEntry(entry *data.Entry, dataType data.DataType) (pos *ke
 	buf := data.EncodeEntry(entry)
 	activeFile := db.activeFiles[dataType]
 	if activeFile.WriteAt+int64(len(buf)) > db.opt.FileSizeLimit {
-		// TODO 加锁？？？
 		if err = activeFile.Sync(); err != nil {
 			return nil, err
 		}

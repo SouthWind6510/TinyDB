@@ -76,6 +76,7 @@ func (zsl *SkipList) GetLength() int64 {
 	return zsl.length
 }
 
+// 生成随机层级
 func (zsl *SkipList) RandLevel() int {
 	// log(1/p)(n) = log2(n) / log2(1/p)
 	// p = 1 / skipSpan, n = length
@@ -144,7 +145,7 @@ func (zsl *SkipList) Insert(member string, score float64) *skipListNode {
 }
 
 func (zsl *SkipList) DeleteNode(node *skipListNode, pre []*skipListNode) bool {
-	// 1. 删除节点
+	// 删除节点
 	for i := 0; i < len(node.level); i++ {
 		pre[i].level[i].forward = node.level[i].forward
 		pre[i].level[i].span += node.level[i].span - 1

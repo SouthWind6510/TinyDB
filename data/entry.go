@@ -19,12 +19,12 @@ const (
 )
 
 type EntryHeader struct {
-	CRC        uint32
-	KeySize    uint32
-	ValueSize  uint32
-	Type       OptrType
-	Timestamp  uint64
-	ExpiryTime uint64
+	CRC        uint32   // 循环冗余法计算校验位
+	KeySize    uint32   // key的大小
+	ValueSize  uint32   // value的大小
+	Type       OptrType // 操作类型
+	Timestamp  uint64   // 时间戳
+	ExpiryTime uint64   // 过期时间
 }
 
 func (eh *EntryHeader) String() string {
@@ -34,8 +34,8 @@ func (eh *EntryHeader) String() string {
 
 type Entry struct {
 	Header *EntryHeader
-	Key    []byte
-	Value  []byte
+	Key    []byte // 二进制key
+	Value  []byte // 二进制value
 }
 
 func (e *Entry) String() string {
@@ -60,6 +60,7 @@ func (e *Entry) size() uint64 {
 	return uint64(HeaderSize + e.Header.KeySize + e.Header.ValueSize)
 }
 
+// EncodeEntry 编码Entry
 func EncodeEntry(e *Entry) (buf []byte) {
 	buf = make([]byte, e.size())
 	binary.LittleEndian.PutUint32(buf[4:8], e.Header.KeySize)
@@ -74,6 +75,7 @@ func EncodeEntry(e *Entry) (buf []byte) {
 	return
 }
 
+// 解码EntryHeader
 func decodeEntryHeader(buf []byte) (eh *EntryHeader) {
 	eh = &EntryHeader{
 		CRC:        binary.LittleEndian.Uint32(buf[:4]),
@@ -86,6 +88,7 @@ func decodeEntryHeader(buf []byte) (eh *EntryHeader) {
 	return
 }
 
+// 解码Entry
 func decodeEntry(buf []byte) (e *Entry) {
 	e = &Entry{
 		Header: decodeEntryHeader(buf[:29]),

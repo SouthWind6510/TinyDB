@@ -6,7 +6,7 @@ import (
 
 func Test_ZSet(t *testing.T) {
 	//_ = os.Setenv(constants.DebugEnv, "1")
-	tinyDB := openDB()
+	tinyDB := openDB(0)
 	defer tinyDB.Close()
 
 	if res, _ := tinyDB.ZCard([]byte("zset1")); res != 0 {

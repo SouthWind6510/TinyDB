@@ -12,7 +12,7 @@ import (
 
 const (
 	MetaIndex    = -1
-	ListLenLimit = math.MaxUint32
+	ListLenLimit = math.MaxInt32
 )
 
 type ListMeta struct {

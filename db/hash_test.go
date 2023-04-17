@@ -8,7 +8,7 @@ import (
 
 func Test_Hash(t *testing.T) {
 	_ = os.Setenv(constants.DebugEnv, "1")
-	tinyDB := openDB()
+	tinyDB := openDB(0)
 	defer tinyDB.Close()
 
 	if res, _ := tinyDB.HSet([]byte("hash"), []byte("a"), []byte("1"), []byte("b"), []byte("2"), []byte("c"), []byte("d")); res != 3 {

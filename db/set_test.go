@@ -8,7 +8,7 @@ import (
 
 func Test_Set(t *testing.T) {
 	_ = os.Setenv(constants.DebugEnv, "1")
-	tinyDB := openDB()
+	tinyDB := openDB(0)
 	defer tinyDB.Close()
 
 	// 1 2 3 4 5
