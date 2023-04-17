@@ -2,13 +2,19 @@ package db
 
 import (
 	"SouthWind6510/TinyDB/pkg/constants"
+	"context"
+	"fmt"
+	"math/rand"
 	"os"
+	"sync"
 	"testing"
+
+	"github.com/go-redis/redis/v8"
 )
 
 func Test_Str(t *testing.T) {
 	_ = os.Setenv(constants.DebugEnv, "1")
-	tinyDB := openDB()
+	tinyDB := openDB(0)
 	defer tinyDB.Close()
 
 	if err := tinyDB.Set([]byte("key1"), []byte("value1")); err != nil {
@@ -81,5 +87,174 @@ func Test_Str(t *testing.T) {
 	}
 	if res, _ := tinyDB.Get([]byte("key5")); res != nil {
 		t.Error("GetDel failed")
+	}
+}
+
+func BenchmarkStrWrite(b *testing.B) {
+	_ = os.Setenv(constants.DebugEnv, "1")
+	tinyDB := openDB(1 << 26) // 64M
+	defer tinyDB.Close()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = tinyDB.Set([]byte(fmt.Sprintf("key%v", i)), []byte("value"))
+	}
+}
+
+func BenchmarkStrRead(b *testing.B) {
+	_ = os.Setenv(constants.DebugEnv, "1")
+	tinyDB := openDB(1 << 26) // 64M
+	defer tinyDB.Close()
+	for i := 0; i < b.N; i++ {
+		_ = tinyDB.Set([]byte(fmt.Sprintf("key%v", i)), []byte("value"))
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		x := rand.Intn(b.N)
+		_, _ = tinyDB.Get([]byte(fmt.Sprintf("key%v", x)))
+	}
+}
+
+func BenchmarkTinyDBWrite(b *testing.B) {
+	rbd := redis.NewClient(&redis.Options{
+		Addr: "localhost:6388",
+	})
+	ctx := context.Background()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rbd.Set(ctx, fmt.Sprintf("key%v", i), "value", 0)
+	}
+}
+
+func BenchmarkRedisWrite(b *testing.B) {
+	rbd := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+	ctx := context.Background()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rbd.Set(ctx, fmt.Sprintf("key%v", i), "value", 0)
+	}
+}
+
+func BenchmarkTinyDBRead(b *testing.B) {
+	rbd := redis.NewClient(&redis.Options{
+		Addr: "localhost:6388",
+	})
+	ctx := context.Background()
+	for i := 0; i < b.N; i++ {
+		rbd.Set(ctx, fmt.Sprintf("key%v", i), "value", 0)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		x := rand.Intn(b.N)
+		rbd.Get(ctx, fmt.Sprintf("key%v", x))
+	}
+}
+
+func BenchmarkRedisRead(b *testing.B) {
+	rbd := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+	ctx := context.Background()
+	for i := 0; i < b.N; i++ {
+		rbd.Set(ctx, fmt.Sprintf("key%v", i), "value", 0)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		x := rand.Intn(b.N)
+		rbd.Get(ctx, fmt.Sprintf("key%v", x))
+	}
+}
+
+func BenchmarkParallelWrite(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		rbd := redis.NewClient(&redis.Options{
+			Addr: "localhost:6388",
+		})
+		ctx := context.Background()
+		i := 0
+		for pb.Next() {
+			rbd.Set(ctx, fmt.Sprintf("key%v", i), "value", 0)
+			i++
+		}
+	})
+}
+
+func BenchmarkParallelWriteRedis(b *testing.B) {
+	rbd := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+	ctx := context.Background()
+	b.RunParallel(func(pb *testing.PB) {
+		i := 0
+		for pb.Next() {
+			rbd.Set(ctx, fmt.Sprintf("key%v", i), "value", 0)
+			i++
+		}
+	})
+}
+
+func BenchmarkParallelRead(b *testing.B) {
+	rbd := redis.NewClient(&redis.Options{
+		Addr: "localhost:6388",
+	})
+	ctx := context.Background()
+	b.RunParallel(func(pb *testing.PB) {
+		i := 0
+		for pb.Next() {
+			rbd.Get(ctx, fmt.Sprintf("key%v", i))
+			i++
+		}
+	})
+}
+
+func BenchmarkParallelReadRedis(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		rbd := redis.NewClient(&redis.Options{
+			Addr: "localhost:6379",
+		})
+		ctx := context.Background()
+		i := 0
+		for pb.Next() {
+			rbd.Get(ctx, fmt.Sprintf("key%v", i))
+			i++
+		}
+	})
+}
+
+// 写入10w条数据
+func TinyDBWrite(x int, wg *sync.WaitGroup) {
+	N := 100000
+	rbd := redis.NewClient(&redis.Options{
+		Addr: "localhost:6388",
+	})
+	ctx := context.Background()
+	for i := 0; i < N; i++ {
+		rbd.Set(ctx, fmt.Sprintf("key%v", i+N*x), "value", 0)
+	}
+	wg.Done()
+}
+
+func Test_Consistency(t *testing.T) {
+	wg := &sync.WaitGroup{}
+	// 100个客户端
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go TinyDBWrite(i, wg)
+	}
+	wg.Wait()
+
+	rbd := redis.NewClient(&redis.Options{
+		Addr: "localhost:6388",
+	})
+	ctx := context.Background()
+	// 检查数据一致性
+	for i := 0; i < 100; i++ {
+		for j := 0; j < 100000; j++ {
+			if rbd.Get(ctx, fmt.Sprintf("key%v", i+100000*i)).Val() != "value" {
+				t.Log("key: ", fmt.Sprintf("key%v", i+100000*i))
+				t.Error("Consistency error")
+			}
+		}
 	}
 }
